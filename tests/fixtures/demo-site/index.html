@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo Video Fixture</title>
+    <style>
+      body { font-family: sans-serif; margin: 0; }
+      main { height: 2000px; padding: 48px; }
+      section { margin-top: 900px; }
+      .mobile-only { display: none; }
+      @media (max-width: 600px) {
+        main { padding: 20px; }
+        .desktop-only { display: none; }
+        .mobile-only { display: block; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Demo dashboard</h1>
+      <p>This local fixture verifies deterministic recording.</p>
+      <h2 class="desktop-only">Desktop navigation</h2>
+      <h2 class="mobile-only">Mobile navigation</h2>
+      <nav>
+        <a href="/details?token=do-not-return">Details link</a>
+      </nav>
+      <button type="button" onclick="this.textContent='Clicked'">
+        Do not click
+      </button>
+      <label>
+        Private note
+        <input value="secret-input-value">
+      </label>
+      <section>
+        <h2>Details</h2>
+      </section>
+    </main>
+  </body>
+</html>

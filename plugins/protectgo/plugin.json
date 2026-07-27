@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "protectgo",
+  "display_name": "Protect GO",
+  "version": "0.1.0",
+  "description": "Optional Protect GO recording knowledge and operations.",
+  "allowed_origins": [
+    "https://protectgo.kr"
+  ],
+  "plugin_actions": [
+    "close_notification_center",
+    "select_recommended_tag"
+  ],
+  "runtime": "adapter.py",
+  "guides": [
+    {
+      "id": "situation-response",
+      "title": "Situation response recording guide",
+      "path": "guides/situation-response.md"
+    }
+  ],
+  "scenario_templates": [
+    {
+      "id": "dashboard-smoke",
+      "title": "Dashboard smoke tour",
+      "description": "Read-only dashboard recording.",
+      "path": "scenarios/dashboard-smoke.json",
+      "required_variables": [
+        "origin",
+        "project_name"
+      ]
+    },
+    {
+      "id": "situation-response",
+      "title": "Situation response flow",
+      "description": "Notification, analysis, action history, and completion.",
+      "path": "scenarios/situation-response.json",
+      "required_variables": [
+        "origin",
+        "project_name",
+        "target_title",
+        "target_situation_id",
+        "summary",
+        "description"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[mcp_servers.demo-video]
+command = "/absolute/path/to/demo-video-mcp/bin/demo-video-mcp"
+args = []
+cwd = "/absolute/path/to/demo-video-mcp"
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+
+[mcp_servers.demo-video.env]
+DEMO_VIDEO_ALLOWED_ROOTS = "/absolute/path/to/allowed-guides"
