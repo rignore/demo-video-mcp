@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "title": "Protect GO situation response",
+  "start_url": "${origin}",
+  "allowed_origins": [
+    "${origin}"
+  ],
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "steps": [
+    {
+      "id": "verify-project",
+      "title": "프로젝트와 대시보드 확인",
+      "action": {
+        "type": "wait_for",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "${project_name}",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_read"
+      ],
+      "approval": "none",
+      "retry_policy": "safe"
+    },
+    {
+      "id": "open-notification-center",
+      "title": "알림 센터 열기",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "css",
+          "value": "button:has([class*=\"alert_bell_button\"])"
+        }
+      },
+      "effects": [
+        "potential_mutation"
+      ],
+      "approval": "required",
+      "retry_policy": "never",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "role",
+            "value": "heading",
+            "name": "알림 센터",
+            "exact": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "open-situation-tab",
+      "title": "상황 알림 탭 선택",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "tab",
+          "name": "^상황",
+          "regex": true
+        }
+      },
+      "effects": [
+        "potential_mutation"
+      ],
+      "approval": "required",
+      "retry_policy": "never",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "text",
+            "value": "${target_title}",
+            "exact": true,
+            "nth": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "open-situation-detail",
+      "title": "상황 상세 열기",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "text",
+          "value": "${target_title}",
+          "exact": true,
+          "nth": 0
+        }
+      },
+      "effects": [
+        "potential_mutation"
+      ],
+      "approval": "required",
+      "retry_policy": "never",
+      "completion": [
+        {
+          "type": "url",
+          "value": "/abnormal/situation/${target_situation_id}$",
+          "regex": true
+        }
+      ]
+    },
+    {
+      "id": "close-notification-center",
+      "title": "알림 센터 닫기",
+      "action": {
+        "type": "plugin",
+        "operation": "close_notification_center",
+        "params": {}
+      },
+      "effects": [
+        "potential_mutation"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "review-ai-analysis",
+      "title": "AI 분석 결과와 조치 가이드 확인",
+      "action": {
+        "type": "scroll",
+        "top": 650
+      },
+      "effects": [
+        "local_view"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "role",
+            "value": "heading",
+            "name": "AI 분석 결과",
+            "exact": true
+          }
+        }
+      ],
+      "hold_ms": 1800
+    },
+    {
+      "id": "enter-action-history",
+      "title": "담당자 지정 및 조치 이력 진입",
+      "action": {
+        "type": "goto",
+        "url": "${origin}/abnormal/situation/${target_situation_id}/action-history"
+      },
+      "effects": [
+        "remote_write",
+        "workflow_transition"
+      ],
+      "approval": "required",
+      "retry_policy": "never",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "role",
+            "value": "heading",
+            "name": "조치 이력 기록",
+            "exact": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "edit-summary",
+      "title": "조치 요약 편집",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "편집",
+          "exact": true
+        }
+      },
+      "effects": [
+        "potential_mutation"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "fill-summary",
+      "title": "조치 요약 입력",
+      "action": {
+        "type": "fill",
+        "target": {
+          "by": "role",
+          "value": "textbox",
+          "name": "조치 요약 제목 편집"
+        },
+        "value": "${summary}"
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "save-summary",
+      "title": "조치 요약 저장",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "저장",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "select-symptom",
+      "title": "현상 AI 추천 선택",
+      "action": {
+        "type": "plugin",
+        "operation": "select_recommended_tag",
+        "params": {
+          "step": 1
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "next-symptom",
+      "title": "현상 단계 완료",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "다음",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "select-cause",
+      "title": "원인 AI 추천 선택",
+      "action": {
+        "type": "plugin",
+        "operation": "select_recommended_tag",
+        "params": {
+          "step": 2
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "next-cause",
+      "title": "원인 단계 완료",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "다음",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "select-action",
+      "title": "조치 AI 추천 선택",
+      "action": {
+        "type": "plugin",
+        "operation": "select_recommended_tag",
+        "params": {
+          "step": 3
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "next-action",
+      "title": "조치 단계 완료",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "다음",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "fill-description",
+      "title": "추가 설명 입력",
+      "action": {
+        "type": "fill",
+        "target": {
+          "by": "role",
+          "value": "textbox",
+          "name": "추가 설명"
+        },
+        "value": "${description}"
+      },
+      "effects": [
+        "remote_write"
+      ],
+      "approval": "required",
+      "retry_policy": "never"
+    },
+    {
+      "id": "complete-situation",
+      "title": "처리 완료 제출",
+      "action": {
+        "type": "click",
+        "target": {
+          "by": "role",
+          "value": "button",
+          "name": "처리 완료",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_write",
+        "workflow_transition"
+      ],
+      "approval": "required",
+      "retry_policy": "never",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "text",
+            "value": "조치 이력이 저장됐습니다.",
+            "exact": true
+          }
+        }
+      ],
+      "hold_ms": 2500
+    }
+  ]
+}

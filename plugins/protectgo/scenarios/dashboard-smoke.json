@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "title": "Protect GO dashboard smoke",
+  "start_url": "${origin}",
+  "allowed_origins": [
+    "${origin}"
+  ],
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "steps": [
+    {
+      "id": "verify-dashboard",
+      "title": "대시보드 확인",
+      "action": {
+        "type": "wait_for",
+        "target": {
+          "by": "role",
+          "value": "heading",
+          "name": "메인 대시보드",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_read"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "completion": [
+        {
+          "type": "visible",
+          "target": {
+            "by": "role",
+            "value": "button",
+            "name": "${project_name}",
+            "exact": true
+          }
+        }
+      ],
+      "hold_ms": 1800
+    },
+    {
+      "id": "scroll-dashboard",
+      "title": "대시보드 아래 영역 확인",
+      "action": {
+        "type": "scroll",
+        "top": 700
+      },
+      "effects": [
+        "local_view"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "hold_ms": 1500
+    },
+    {
+      "id": "return-dashboard-top",
+      "title": "대시보드 상단으로 복귀",
+      "action": {
+        "type": "scroll",
+        "top": 0
+      },
+      "effects": [
+        "local_view"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "hold_ms": 1500
+    }
+  ]
+}

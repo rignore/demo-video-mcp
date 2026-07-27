@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "title": "Read-only page tour",
+  "start_url": "${start_url}",
+  "allowed_origins": [
+    "${allowed_origin}"
+  ],
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "steps": [
+    {
+      "id": "wait-heading",
+      "title": "Wait for the main heading",
+      "action": {
+        "type": "wait_for",
+        "target": {
+          "by": "role",
+          "value": "heading",
+          "name": "${heading}",
+          "exact": true
+        }
+      },
+      "effects": [
+        "remote_read"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "hold_ms": 1200
+    },
+    {
+      "id": "scroll-down",
+      "title": "Scroll down",
+      "action": {
+        "type": "scroll",
+        "top": 700
+      },
+      "effects": [
+        "local_view"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "hold_ms": 1500
+    },
+    {
+      "id": "scroll-top",
+      "title": "Return to the top",
+      "action": {
+        "type": "scroll",
+        "top": 0
+      },
+      "effects": [
+        "local_view"
+      ],
+      "approval": "none",
+      "retry_policy": "safe",
+      "hold_ms": 1500
+    }
+  ]
+}

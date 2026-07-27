@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "demo-video-mcp"
+version = "0.3.0"
+description = "Brief-driven web and Android native demo video MCP server"
+requires-python = ">=3.9"
+dependencies = [
+  "playwright==1.60.0",
+  "imageio-ffmpeg==0.6.0",
+]
+
+[project.scripts]
+demo-video-mcp = "demo_video_mcp.server:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+demo_video_mcp = ["schemas/*.json"]

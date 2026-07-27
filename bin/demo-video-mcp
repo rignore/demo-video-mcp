@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+if [ -n "${DEMO_VIDEO_PYTHON:-}" ] && [ -x "$DEMO_VIDEO_PYTHON" ]; then
+  PYTHON_RUNTIME="$DEMO_VIDEO_PYTHON"
+elif [ -x "$PROJECT_DIR/.venv/bin/python" ]; then
+  PYTHON_RUNTIME="$PROJECT_DIR/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_RUNTIME=$(command -v python3)
+else
+  echo "demo-video-mcp: Python runtime not found" >&2
+  exit 1
+fi
+
+export DEMO_VIDEO_PROJECT_ROOT="${DEMO_VIDEO_PROJECT_ROOT:-$PROJECT_DIR}"
+export DEMO_VIDEO_PLUGIN_DIRS="${DEMO_VIDEO_PLUGIN_DIRS:-$PROJECT_DIR/plugins}"
+export DEMO_VIDEO_DATA_ROOT="${DEMO_VIDEO_DATA_ROOT:-$PROJECT_DIR/.demo-video-data}"
+export DEMO_VIDEO_ALLOWED_ROOTS="${DEMO_VIDEO_ALLOWED_ROOTS:-$PROJECT_DIR}"
+export PYTHONPATH="$PROJECT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+
+exec "$PYTHON_RUNTIME" -m demo_video_mcp

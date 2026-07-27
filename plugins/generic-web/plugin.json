@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "generic-web",
+  "display_name": "Generic Web",
+  "version": "0.2.0",
+  "description": "Domain-neutral Playwright actions for web demonstrations.",
+  "allowed_origins": [
+    "*"
+  ],
+  "plugin_actions": [],
+  "guides": [
+    {
+      "id": "scenario-authoring",
+      "title": "Generic scenario authoring guide",
+      "path": "guides/scenario-authoring.md"
+    }
+  ],
+  "scenario_templates": [
+    {
+      "id": "read-only-tour",
+      "title": "Read-only page tour",
+      "description": "Open a page, wait for a heading, scroll, and return.",
+      "path": "scenarios/read-only-tour.json",
+      "required_variables": [
+        "start_url",
+        "allowed_origin",
+        "heading"
+      ]
+    }
+  ]
+}

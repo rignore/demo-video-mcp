@@ -1,0 +1,6 @@
+.auth/
+.venv/
+.demo-video-data/
+videos/
+__pycache__/
+*.pyc

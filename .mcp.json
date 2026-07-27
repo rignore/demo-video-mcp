@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "demo-video": {
+      "command": "./bin/demo-video-mcp",
+      "args": [],
+      "env": {
+        "DEMO_VIDEO_ALLOWED_ROOTS": "."
+      }
+    }
+  }
+}
