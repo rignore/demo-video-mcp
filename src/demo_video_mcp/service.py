@@ -16,6 +16,11 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .briefs import normalize_video_brief, validate_video_brief
+from .captions import (
+    caption_review_required,
+    caption_storyboard,
+    caption_summary,
+)
 from .capture import (
     STANDARD_OUTPUT_SIZE,
     normalize_capture,
@@ -400,6 +405,37 @@ class VideoService:
             "scenario_seed": scenario_seed,
             "guides": guides,
             "suggested_scene_count": suggested_scene_count,
+            "caption_planning": {
+                "decision_required": True,
+                "required_when": [
+                    "The audience needs guidance to understand the screen.",
+                    "The flow is for onboarding, training, or external delivery.",
+                    "Multiple UI transitions need an explanatory narrative.",
+                    "A visible action has a purpose that the UI does not explain.",
+                ],
+                "not_required_when": [
+                    "The video is short internal evidence of a defect.",
+                    "The visible UI and actions are self-explanatory.",
+                ],
+                "scenario_contract": {
+                    "captions": {
+                        "decision": "required | not_required",
+                        "reason": "Why the full flow does or does not need captions",
+                        "language": "ko-KR",
+                        "output": "sidecar | burned_in | both",
+                    },
+                    "step_caption": {
+                        "screen": "Human-readable screen name",
+                        "text": "Caption visible during this scene",
+                    },
+                    "minimum_captioned_hold_ms": 1200,
+                },
+                "approval": (
+                    "When captions are required, preflight exposes the exact "
+                    "screen-to-caption storyboard and the user must approve "
+                    "the frozen plan before recording."
+                ),
+            },
             "authoring_rules": [
                 "The host model authors the Scenario V1; the MCP server does "
                 "not call an embedded LLM.",
@@ -414,6 +450,12 @@ class VideoService:
                 "Do not add external data changes unless the brief explicitly "
                 "requires them; all potential mutations still require exact "
                 "plan approval.",
+                "Evaluate the complete user flow and add captions.decision "
+                "with a concrete reason. When captions are required, add "
+                "screen and text to every meaningful captioned scene.",
+                "Before approval, show the user every screen-to-caption entry "
+                "returned by preflight. Do not record until the user confirms "
+                "that frozen storyboard.",
                 f"Target approximately {duration} seconds across "
                 f"{suggested_scene_count} scenes.",
             ],
@@ -979,6 +1021,14 @@ class VideoService:
             for step in steps
             if isinstance(step, dict) and is_mutating_step(step)
         ]
+        caption_review = {
+            **caption_summary(scenario),
+            "required": caption_review_required(scenario),
+            "storyboard": caption_storyboard(scenario),
+        }
+        requires_approval = bool(
+            mutations or caption_review["required"]
+        )
         preflight = {
             "job_id": job_id,
             "backend": "native-android",
@@ -986,6 +1036,8 @@ class VideoService:
             "checks": checks,
             "runtime": runtime,
             "mutations": mutations,
+            "caption_review": caption_review,
+            "requires_approval": requires_approval,
             "passed": not failed,
             "created_at": utc_now(),
         }
@@ -995,7 +1047,7 @@ class VideoService:
         )
         if failed:
             next_state = "PREFLIGHT_FAILED"
-        elif mutations:
+        elif requires_approval:
             next_state = "AWAITING_APPROVAL"
         else:
             next_state = "READY"
@@ -1162,11 +1214,21 @@ class VideoService:
             for step in scenario["steps"]
             if is_mutating_step(step)
         ]
+        caption_review = {
+            **caption_summary(scenario),
+            "required": caption_review_required(scenario),
+            "storyboard": caption_storyboard(scenario),
+        }
+        requires_approval = bool(
+            mutations or caption_review["required"]
+        )
         preflight = {
             "job_id": job_id,
             "plan_hash": status["plan_hash"],
             "checks": checks,
             "mutations": mutations,
+            "caption_review": caption_review,
+            "requires_approval": requires_approval,
             "passed": not failed,
             "created_at": utc_now(),
         }
@@ -1176,7 +1238,7 @@ class VideoService:
         )
         if failed:
             next_state = "PREFLIGHT_FAILED"
-        elif mutations:
+        elif requires_approval:
             next_state = "AWAITING_APPROVAL"
         else:
             next_state = "READY"
@@ -1220,7 +1282,7 @@ class VideoService:
         if confirm_external_changes is not True:
             raise ValidationError(
                 "confirm_external_changes must be true after explicit "
-                "user approval"
+                "user approval of the frozen recording plan"
             )
         scenario = self.store.get_scenario(job_id)
         expected = [
@@ -1239,6 +1301,10 @@ class VideoService:
             "job_id": job_id,
             "plan_hash": plan_hash,
             "approved_step_ids": expected,
+            "caption_review": {
+                **caption_summary(scenario),
+                "storyboard": caption_storyboard(scenario),
+            },
             "confirmed_at": utc_now(),
         }
         atomic_write_json(approval_path, approval)
@@ -1253,6 +1319,9 @@ class VideoService:
             {
                 "plan_hash": plan_hash,
                 "approved_step_ids": expected,
+                "caption_storyboard_approved": (
+                    caption_review_required(scenario)
+                ),
             },
         )
         return self.get_job(job_id)
@@ -1407,17 +1476,20 @@ class VideoService:
                 "create and approve a new job"
             )
         scenario = self.store.get_scenario(job_id)
-        if any(
-            is_mutating_step(step)
-            for step in scenario.get("steps", [])
-            if isinstance(step, dict)
+        if (
+            any(
+                is_mutating_step(step)
+                for step in scenario.get("steps", [])
+                if isinstance(step, dict)
+            )
+            or caption_review_required(scenario)
         ):
             approval_path = self.store.job_dir(job_id) / "approval.json"
             if not approval_path.is_file():
-                raise ConflictError("mutation approval is missing")
+                raise ConflictError("recording plan approval is missing")
             approval = read_json(approval_path)
             if approval.get("plan_hash") != plan_hash:
-                raise ConflictError("mutation approval is stale")
+                raise ConflictError("recording plan approval is stale")
         self._acquire_recording_lock(job_id)
         self.store.update_status(
             job_id,
@@ -1464,13 +1536,16 @@ class VideoService:
                 "create and approve a new job"
             )
         scenario = self.store.get_scenario(job_id)
-        if any(is_mutating_step(step) for step in scenario["steps"]):
+        if (
+            any(is_mutating_step(step) for step in scenario["steps"])
+            or caption_review_required(scenario)
+        ):
             approval_path = self.store.job_dir(job_id) / "approval.json"
             if not approval_path.is_file():
-                raise ConflictError("mutation approval is missing")
+                raise ConflictError("recording plan approval is missing")
             approval = read_json(approval_path)
             if approval.get("plan_hash") != plan_hash:
-                raise ConflictError("mutation approval is stale")
+                raise ConflictError("recording plan approval is stale")
         self._acquire_recording_lock(job_id)
         self.store.update_status(
             job_id,

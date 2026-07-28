@@ -8,6 +8,7 @@ import re
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 from urllib.parse import urlparse, urlunparse
 
+from .captions import caption_summary, validate_caption_contract
 from .capture import validate_capture
 
 
@@ -273,6 +274,7 @@ def validate_scenario(
     if not isinstance(steps, list) or not steps:
         errors.append("steps: non-empty array is required")
         return errors
+    errors.extend(validate_caption_contract(scenario, steps))
 
     seen_ids = set()
     allowed_plugin_actions = set(plugin_actions)
@@ -467,4 +469,5 @@ def scenario_summary(scenario: Mapping[str, Any]) -> Dict[str, Any]:
         "step_count": len(steps) if isinstance(steps, list) else 0,
         "mutation_count": len(mutations),
         "mutations": mutations,
+        "captions": caption_summary(scenario),
     }

@@ -50,6 +50,21 @@ class NativeScenarioTests(unittest.TestCase):
     def test_valid_android_scenario(self):
         self.assertEqual(validate_native_scenario(valid_native_scenario()), [])
 
+    def test_required_native_caption_is_valid(self):
+        scenario = valid_native_scenario()
+        scenario["captions"] = {
+            "decision": "required",
+            "reason": "운영 교육용 흐름입니다.",
+            "language": "ko-KR",
+            "output": "both",
+        }
+        scenario["steps"][1]["hold_ms"] = 1500
+        scenario["steps"][1]["caption"] = {
+            "screen": "대시보드",
+            "text": "현재 상태를 확인합니다.",
+        }
+        self.assertEqual(validate_native_scenario(scenario), [])
+
     def test_launch_is_mandatory_and_must_be_first(self):
         scenario = valid_native_scenario()
         scenario["steps"] = scenario["steps"][1:]

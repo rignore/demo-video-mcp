@@ -46,6 +46,9 @@
       "maximum": 180,
       "default": 180
     },
+    "captions": {
+      "$ref": "#/$defs/captions"
+    },
     "steps": {
       "type": "array",
       "minItems": 1,
@@ -55,6 +58,61 @@
     }
   },
   "$defs": {
+    "captions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "decision": {
+          "enum": [
+            "required",
+            "not_required"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 35,
+          "default": "ko-KR"
+        },
+        "output": {
+          "enum": [
+            "sidecar",
+            "burned_in",
+            "both"
+          ],
+          "default": "both"
+        }
+      }
+    },
+    "caption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screen",
+        "text"
+      ],
+      "properties": {
+        "screen": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      }
+    },
     "device": {
       "type": "object",
       "additionalProperties": false,
@@ -205,6 +263,9 @@
         },
         "title": {
           "type": "string"
+        },
+        "caption": {
+          "$ref": "#/$defs/caption"
         },
         "action": {
           "$ref": "#/$defs/action"

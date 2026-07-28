@@ -118,6 +118,12 @@ class RecordingIntegrationTests(unittest.TestCase):
                 "title": "Mobile fixture",
                 "start_url": origin,
                 "allowed_origins": [origin],
+                "captions": {
+                    "decision": "required",
+                    "reason": "모바일 신규 사용자 안내 흐름입니다.",
+                    "language": "ko-KR",
+                    "output": "both",
+                },
                 "steps": [
                     {
                         "id": "verify-mobile-layout",
@@ -134,7 +140,11 @@ class RecordingIntegrationTests(unittest.TestCase):
                         "effects": ["remote_read"],
                         "approval": "none",
                         "retry_policy": "safe",
-                        "hold_ms": 800,
+                        "hold_ms": 1500,
+                        "caption": {
+                            "screen": "모바일 홈",
+                            "text": "모바일 탐색 메뉴를 확인합니다.",
+                        },
                     }
                 ],
             }
@@ -148,7 +158,16 @@ class RecordingIntegrationTests(unittest.TestCase):
                 },
             )
             preflight = service.preflight_job(job["job_id"])
-            self.assertEqual(preflight["job"]["state"], "READY")
+            self.assertEqual(
+                preflight["job"]["state"],
+                "AWAITING_APPROVAL",
+            )
+            service.approve_job(
+                job["job_id"],
+                job["plan_hash"],
+                [],
+                True,
+            )
             service.start_job(job["job_id"], job["plan_hash"])
 
             deadline = time.monotonic() + 45
@@ -183,6 +202,8 @@ class RecordingIntegrationTests(unittest.TestCase):
             }
             self.assertIn("recording.webm", names)
             self.assertIn("video.mp4", names)
+            self.assertIn("captions.vtt", names)
+            self.assertIn("video-captioned.mp4", names)
             mp4 = next(
                 Path(artifact["path"])
                 for artifact in current["artifacts"]
@@ -191,6 +212,19 @@ class RecordingIntegrationTests(unittest.TestCase):
             self.assertEqual(
                 probe_video_size(mp4),
                 {"width": 1920, "height": 1080},
+            )
+            captioned_mp4 = next(
+                Path(artifact["path"])
+                for artifact in current["artifacts"]
+                if artifact["artifact_id"] == "video-captioned.mp4"
+            )
+            self.assertEqual(
+                probe_video_size(captioned_mp4),
+                {"width": 1920, "height": 1080},
+            )
+            self.assertEqual(
+                current["manifest"]["captions"]["cues"][0]["text"],
+                "모바일 탐색 메뉴를 확인합니다.",
             )
 
 

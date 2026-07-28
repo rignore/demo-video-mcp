@@ -86,6 +86,71 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(approved["state"], "READY")
 
+    def test_caption_storyboard_requires_approval_without_mutation(self):
+        scenario = {
+            "schema_version": 1,
+            "title": "Captioned read-only tour",
+            "start_url": "https://example.com",
+            "allowed_origins": ["https://example.com"],
+            "captions": {
+                "decision": "required",
+                "reason": "신규 사용자를 위한 안내 영상입니다.",
+                "language": "ko-KR",
+                "output": "both",
+            },
+            "steps": [
+                {
+                    "id": "show-heading",
+                    "title": "Show heading",
+                    "action": {
+                        "type": "wait_for",
+                        "target": {
+                            "by": "role",
+                            "value": "heading",
+                            "name": "Example Domain",
+                        },
+                    },
+                    "effects": ["remote_read"],
+                    "approval": "none",
+                    "retry_policy": "safe",
+                    "hold_ms": 1500,
+                    "caption": {
+                        "screen": "Example home",
+                        "text": "서비스의 시작 화면을 확인합니다.",
+                    },
+                }
+            ],
+        }
+        job = self.service.create_job(
+            plugin_id="generic-web",
+            scenario=scenario,
+        )
+        result = self.service.preflight_job(job["job_id"])
+
+        self.assertEqual(result["job"]["state"], "AWAITING_APPROVAL")
+        self.assertEqual(result["preflight"]["mutations"], [])
+        self.assertTrue(result["preflight"]["requires_approval"])
+        self.assertEqual(
+            result["preflight"]["caption_review"]["storyboard"][0][
+                "caption"
+            ],
+            "서비스의 시작 화면을 확인합니다.",
+        )
+        approved = self.service.approve_job(
+            job["job_id"],
+            job["plan_hash"],
+            [],
+            True,
+        )
+        self.assertEqual(approved["state"], "READY")
+        approval = read_json(
+            self.service.store.job_dir(job["job_id"]) / "approval.json"
+        )
+        self.assertEqual(
+            approval["caption_review"]["storyboard"][0]["screen"],
+            "Example home",
+        )
+
     def test_optional_protectgo_template_is_a_valid_plugin_job(self):
         job = self.service.create_job(
             plugin_id="protectgo",
@@ -127,6 +192,9 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertEqual(result["missing_inputs"], [])
         self.assertTrue(result["guides"])
+        self.assertTrue(
+            result["caption_planning"]["decision_required"]
+        )
 
     def test_template_capture_override_is_frozen_in_scenario(self):
         job = self.service.create_job(

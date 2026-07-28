@@ -11,6 +11,8 @@ Codex와 Claude Code에서 tool로 호출한다.
 - 최종 MP4를 고정 `1920x1080` canvas로 출력
 - 브라우저에서 사용자가 직접 로그인한 profile 재사용
 - 실행 전 mutation step 검출 및 명시적 승인
+- 전체 flow의 자막 필요성 판단 및 화면별 자막 storyboard 승인
+- 녹화 timeline 기반 WebVTT와 burned-in 자막 MP4 생성
 - 제품별 guide, scenario, action을 plugin으로 분리
 
 ## 시작하기

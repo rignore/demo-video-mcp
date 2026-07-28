@@ -426,7 +426,15 @@ def _available_avds(emulator: Optional[str]) -> List[str]:
 def _uiautomator2_available(appium: Optional[str]) -> Optional[bool]:
     if not appium:
         return None
-    lines = _run_lines([appium, "driver", "list", "--installed"], timeout=30)
+    lines = _run_lines(
+        [appium, "driver", "list", "--installed", "--json"],
+        timeout=30,
+    )
+    if not lines:
+        lines = _run_lines(
+            [appium, "driver", "list", "--installed"],
+            timeout=30,
+        )
     if not lines:
         return False
     return "uiautomator2" in "\n".join(lines).lower()
