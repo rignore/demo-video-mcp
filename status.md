@@ -15,8 +15,10 @@
 - Web and Android integration tests produced `captions.vtt` and
   `video-captioned.mp4`.
 
-## In Progress
+## Completed
 
 - GitHub publish
-  - Publish the caption workflow, contributor guide, and native runtime fix.
-  - Exclude generated MP4 and manifest artifacts.
+  - Pushed the caption workflow, contributor guide, and native runtime fix to
+    `codex/publish-demo-video-mcp`.
+  - Opened draft PR #2 against `main`.
+  - Excluded generated MP4 and manifest artifacts.
