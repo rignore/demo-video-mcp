@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Mapping
 
+from .captions import caption_summary, validate_caption_contract
 from .models import is_mutating_step
 
 
@@ -106,6 +107,7 @@ def validate_native_scenario(scenario: Any) -> List[str]:
             "device",
             "reset_policy",
             "max_duration_seconds",
+            "captions",
             "steps",
         },
         "scenario",
@@ -178,6 +180,7 @@ def validate_native_scenario(scenario: Any) -> List[str]:
     if not isinstance(steps, list) or not steps:
         errors.append("steps: non-empty array is required")
         return errors
+    errors.extend(validate_caption_contract(scenario, steps))
 
     seen_ids = set()
     launch_count = 0
@@ -198,6 +201,7 @@ def validate_native_scenario(scenario: Any) -> List[str]:
                 "retry_policy",
                 "timeout_ms",
                 "hold_ms",
+                "caption",
             },
             location,
         )
@@ -400,4 +404,5 @@ def native_scenario_summary(
         "step_count": len(steps) if isinstance(steps, list) else 0,
         "mutation_count": len(mutations),
         "mutations": mutations,
+        "captions": caption_summary(scenario),
     }

@@ -17,7 +17,8 @@ Codex/Claude Code가 시나리오를 계획하고, MCP Server는 다음 작업�
 - Playwright desktop/mobile-web 녹화 worker 실행
 - Appium UiAutomator2 Android Emulator 녹화 worker 실행
 - APK/.app.zip app artifact 비공개 등록
-- WebM/MP4 및 manifest 생성
+- 자막 필요성 판단 기준과 화면별 storyboard 검증
+- WebM/MP4, WebVTT, burned-in 자막 MP4 및 manifest 생성
 
 ## 구조
 
@@ -79,15 +80,16 @@ Claude Code는 처음 연결할 때 project MCP Server 신뢰 승인을 요청�
 2. 사용자 요청을 Video Brief V1으로 정규화
 3. `get_video_planning_context`
 4. 필요할 때 동일 capture 설정으로 `inspect_video_site`
-5. Host model이 guide와 조사 결과로 Scenario V1 작성
+5. Host model이 전체 flow의 자막 필요성을 판단하고 Scenario V1 작성
 6. `start_video_login` → 브라우저에서 직접 로그인 및 프로젝트 선택
 7. `finish_video_login`
 8. Brief와 capture를 포함해 `create_video_job`
 9. `preflight_video_job`
-10. 변경 단계가 있으면 사용자에게 표시한 뒤 `approve_video_job`
+10. 자막 storyboard와 변경 단계를 사용자에게 표시한 뒤, preflight가
+    요구하면 `approve_video_job`
 11. `start_video_job`
 12. `get_video_job` polling
-13. MP4와 `manifest.json` 경로 반환
+13. MP4, `manifest.json`, 생성된 자막 artifact 경로 반환
 
 MCP Server 내부에는 LLM이 없다. Codex 또는 Claude Code가 목적과 대상에
 맞는 장면을 기획하고, MCP Server는 planning context 제공, 검증, 조사,
@@ -234,11 +236,11 @@ artifact가 아니므로 받지 않는다.
 7. Host model이 Native Scenario V1 작성
 8. `create_native_video_job`
 9. `preflight_video_job`
-10. 모든 mutation step과 `plan_hash` 표시
+10. 자막 storyboard, 모든 mutation step과 `plan_hash` 표시
 11. 명시적 승인 후 `approve_video_job`
 12. `start_video_job`
 13. `get_video_job` polling
-14. `1920x1080` MP4와 manifest 반환
+14. `1920x1080` MP4, manifest와 생성된 자막 artifact 반환
 
 `inspect_native_app`은 control을 tap하지 않지만 APK를 설치하고 실행한다.
 앱 시작 자체가 API 호출을 발생시킬 수 있으므로
@@ -376,14 +378,55 @@ plugins/<plugin-id>/
 일반 사이트는 `generic-web` plugin만으로 처리한다. 사이트 고유 DOM
 검증이 필요한 경우에만 별도 plugin을 추가한다.
 
-## 승인 규칙
+## 실행 위험 판정
 
 Core는 web의 `goto`, `click`, `fill`, `press`, `select_option`, `plugin`과
 Native의 `launch`, `tap`, `fill`, `press_key`, `back` action을 잠재적
 mutation으로 간주한다. Scenario가 read-only라고 기술해도 이 risk
 floor는 낮아지지 않는다.
 
-Mutation이 포함된 job은 다음 값을 모두 충족해야 실행할 수 있다.
+## 자막 판단 및 승인
+
+Host model은 purpose, audience, key message와 전체 user flow를 기준으로
+자막 필요성을 판단한다. onboarding, 교육, 외부 전달, 설명이 필요한
+다단계 flow는 `required`를 사용한다. 짧은 내부 defect 증빙처럼 화면
+자체로 의미가 분명하면 `not_required`를 사용한다.
+
+```json
+{
+  "captions": {
+    "decision": "required",
+    "reason": "신규 운영자 교육용 다단계 flow입니다.",
+    "language": "ko-KR",
+    "output": "both"
+  },
+  "steps": [
+    {
+      "id": "show-dashboard",
+      "title": "대시보드 확인",
+      "hold_ms": 1800,
+      "caption": {
+        "screen": "홈 > 대시보드",
+        "text": "현재 발생한 상황을 한눈에 확인합니다."
+      }
+    }
+  ]
+}
+```
+
+자막 scene의 `hold_ms`는 최소 1200ms다. `preflight_video_job`은
+`caption_review.storyboard`에 화면명, 문구, scene, 노출 시간을 그대로
+반환한다. 자막이 필요한 job은 mutation이 없어도 `AWAITING_APPROVAL`로
+전환되며 승인된 `plan_hash`가 없으면 녹화를 시작할 수 없다.
+
+`output`은 `sidecar`, `burned_in`, `both` 중 하나다. `both`는
+`captions.vtt`와 자막이 화면에 합성된 `video-captioned.mp4`를 함께 만든다.
+원본 `video.mp4`는 변경하지 않는다.
+
+## 승인 규칙
+
+Mutation 또는 required 자막이 포함된 job은 다음 값을 모두 충족해야
+실행할 수 있다.
 
 - `preflight_video_job` 완료
 - 정확한 `plan_hash`
@@ -409,6 +452,8 @@ Mutation이 포함된 job은 다음 값을 모두 충족해야 실행할 수 있
     ├── recording.webm
     ├── native-recording.mp4
     ├── video.mp4
+    ├── captions.vtt
+    ├── video-captioned.mp4
     └── error.png
 ```
 
@@ -418,6 +463,8 @@ worker를 시작하고 즉시 `job_id`를 반환하며, Agent가
 
 `manifest.json`에는 실제 적용한 capture target, device, orientation,
 browser viewport, raw record size와 고정 `1920x1080` output size가 포함된다.
+자막이 생성되면 승인한 문구와 실제 `video_start_ms`, `video_end_ms` cue도
+포함된다.
 MP4 생성에 실패하거나 최종 해상도가 생성되지 않으면 job은
 `SUCCEEDED`로 처리하지 않는다.
 

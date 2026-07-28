@@ -46,6 +46,51 @@ class ScenarioValidationTests(unittest.TestCase):
             [],
         )
 
+    def test_required_captions_need_reviewable_scene_text(self):
+        scenario = base_scenario(
+            {
+                "id": "wait-heading",
+                "title": "Wait",
+                "action": {
+                    "type": "wait_for",
+                    "target": {
+                        "by": "role",
+                        "value": "heading",
+                        "name": "Demo",
+                    },
+                },
+                "effects": ["remote_read"],
+                "approval": "none",
+                "retry_policy": "safe",
+                "hold_ms": 1500,
+                "caption": {
+                    "screen": "Demo dashboard",
+                    "text": "Review the current status.",
+                },
+            }
+        )
+        scenario["captions"] = {
+            "decision": "required",
+            "reason": "The external audience needs guided context.",
+            "output": "both",
+        }
+        self.assertEqual(
+            validate_scenario(
+                scenario,
+                plugin_allowed_origins=["*"],
+            ),
+            [],
+        )
+
+        scenario["steps"][0]["hold_ms"] = 800
+        errors = validate_scenario(
+            scenario,
+            plugin_allowed_origins=["*"],
+        )
+        self.assertTrue(
+            any("at least 1200ms" in error for error in errors)
+        )
+
     def test_interaction_cannot_lower_risk(self):
         scenario = base_scenario(
             {

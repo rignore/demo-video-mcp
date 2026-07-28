@@ -13,7 +13,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from demo_video_mcp.config import Settings
-from demo_video_mcp.media import find_ffmpeg, probe_video_size
+from demo_video_mcp.media import (
+    find_ffmpeg,
+    probe_video_size,
+)
 from demo_video_mcp.native_worker import run_native_job
 from demo_video_mcp.service import VideoService
 
@@ -59,7 +62,7 @@ class NativeRecordingIntegrationTests(unittest.TestCase):
                     "-f",
                     "lavfi",
                     "-i",
-                    "color=c=blue:s=320x640:d=1",
+                    "color=c=blue:s=320x640:d=2",
                     "-an",
                     "-c:v",
                     "libx264",
@@ -161,6 +164,12 @@ class NativeRecordingIntegrationTests(unittest.TestCase):
                     "orientation": "portrait",
                 },
                 "max_duration_seconds": 10,
+                "captions": {
+                    "decision": "required",
+                    "reason": "네이티브 앱의 첫 화면을 안내합니다.",
+                    "language": "ko-KR",
+                    "output": "both",
+                },
                 "steps": [
                     {
                         "id": "launch",
@@ -169,7 +178,11 @@ class NativeRecordingIntegrationTests(unittest.TestCase):
                         "effects": ["potential_mutation"],
                         "approval": "required",
                         "retry_policy": "never",
-                        "hold_ms": 0,
+                        "hold_ms": 1200,
+                        "caption": {
+                            "screen": "앱 홈",
+                            "text": "앱의 시작 화면을 확인합니다.",
+                        },
                     }
                 ],
             }
@@ -215,6 +228,20 @@ class NativeRecordingIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(
                 probe_video_size(mp4),
+                {"width": 1920, "height": 1080},
+            )
+            names = {
+                item["artifact_id"] for item in current["artifacts"]
+            }
+            self.assertIn("captions.vtt", names)
+            self.assertIn("video-captioned.mp4", names)
+            captioned_mp4 = next(
+                Path(item["path"])
+                for item in current["artifacts"]
+                if item["artifact_id"] == "video-captioned.mp4"
+            )
+            self.assertEqual(
+                probe_video_size(captioned_mp4),
                 {"width": 1920, "height": 1080},
             )
 

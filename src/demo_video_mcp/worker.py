@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -11,8 +12,14 @@ from typing import Any, Dict, Optional
 from playwright.sync_api import sync_playwright
 
 from .capture import resolve_capture
+from .captions import caption_summary
 from .config import Settings
-from .media import convert_to_mp4, file_metadata, probe_video_size
+from .media import (
+    convert_to_mp4,
+    file_metadata,
+    generate_caption_artifacts,
+    probe_video_size,
+)
 from .models import is_mutating_step, url_origin
 from .plugins import PluginRegistry
 from .runner import assert_completion, execute_action
@@ -37,6 +44,7 @@ def _manifest(
     steps: list[dict[str, Any]],
     artifacts: list[dict[str, Any]],
     capture: Dict[str, Any],
+    captions: Dict[str, Any],
     mutation_attempted: bool,
     error: Optional[str],
 ) -> Dict[str, Any]:
@@ -50,6 +58,7 @@ def _manifest(
         "steps": steps,
         "artifacts": artifacts,
         "capture": capture,
+        "captions": captions,
         "external_effect_state": (
             "MUTATION_POSSIBLE" if mutation_attempted else "UNTOUCHED"
         ),
@@ -95,6 +104,7 @@ def run_job(job_id: str) -> int:
     caught_error: Optional[Exception] = None
     cancelled = False
     resolved_capture: Dict[str, Any] = {}
+    recording_clock = 0.0
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -114,6 +124,7 @@ def run_job(job_id: str) -> int:
         if storage_state:
             context_arguments["storage_state"] = storage_state
         context = browser.new_context(**context_arguments)
+        recording_clock = time.monotonic()
         page = context.new_page()
         video_object = page.video
         try:
@@ -173,14 +184,30 @@ def run_job(job_id: str) -> int:
                                 step.get("timeout_ms", 30_000)
                             ),
                         )
+                    scene_visible_clock = time.monotonic()
                     hold_ms = int(step.get("hold_ms", 800))
                     if hold_ms:
                         page.wait_for_timeout(hold_ms)
+                    scene_finished_clock = time.monotonic()
+                    video_start_ms = max(
+                        0,
+                        round(
+                            (scene_visible_clock - recording_clock) * 1000
+                        ),
+                    )
+                    video_end_ms = max(
+                        video_start_ms + 1,
+                        round(
+                            (scene_finished_clock - recording_clock) * 1000
+                        ),
+                    )
                     result = {
                         "step_id": step["id"],
                         "state": "passed",
                         "started_at": step_started,
                         "finished_at": utc_now(),
+                        "video_start_ms": video_start_ms,
+                        "video_end_ms": video_end_ms,
                         "error": None,
                     }
                     step_results.append(result)
@@ -219,6 +246,8 @@ def run_job(job_id: str) -> int:
 
     store.update_status(job_id, state="FINALIZING")
     artifacts: list[dict[str, Any]] = []
+    captions = {**caption_summary(scenario), "cues": []}
+    mp4_path: Optional[Path] = None
     if raw_video_path is not None and raw_video_path.is_file():
         webm_path = artifact_dir / "recording.webm"
         raw_video_path.replace(webm_path)
@@ -252,6 +281,31 @@ def run_job(job_id: str) -> int:
             "Playwright did not produce a recording artifact"
         )
 
+    if (
+        mp4_path is not None
+        and mp4_path.is_file()
+        and caught_error is None
+        and not cancelled
+    ):
+        try:
+            caption_outputs = generate_caption_artifacts(
+                scenario,
+                step_results,
+                mp4_path,
+                artifact_dir,
+            )
+            captions = caption_outputs["manifest"]
+            artifacts.extend(caption_outputs["artifacts"])
+        except Exception as error:
+            store.append_event(
+                job_id,
+                "caption_generation_failed",
+                {"error": str(error)},
+            )
+            caught_error = RuntimeError(
+                f"caption generation failed: {error}"
+            )
+
     if cancelled:
         final_state = "CANCELLED"
         error_text = None
@@ -272,6 +326,7 @@ def run_job(job_id: str) -> int:
         steps=step_results,
         artifacts=artifacts,
         capture=resolved_capture,
+        captions=captions,
         mutation_attempted=mutation_attempted,
         error=error_text,
     )

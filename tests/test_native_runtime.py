@@ -3,10 +3,12 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from demo_video_mcp.errors import ValidationError
 from demo_video_mcp.native_runtime import (
     _inventory_from_source,
+    _uiautomator2_available,
     build_android_capabilities,
     execute_native_action,
     validate_local_appium_url,
@@ -29,6 +31,24 @@ class FakeAppiumClient:
 
 
 class NativeRuntimeTests(unittest.TestCase):
+    @mock.patch("demo_video_mcp.native_runtime._run_lines")
+    def test_uiautomator2_detection_uses_json_output(self, run_lines):
+        run_lines.return_value = [
+            '{"uiautomator2":{"installed":true}}'
+        ]
+
+        self.assertTrue(_uiautomator2_available("/usr/local/bin/appium"))
+        run_lines.assert_called_once_with(
+            [
+                "/usr/local/bin/appium",
+                "driver",
+                "list",
+                "--installed",
+                "--json",
+            ],
+            timeout=30,
+        )
+
     def test_remote_appium_url_is_rejected(self):
         with self.assertRaises(ValidationError):
             validate_local_appium_url("http://example.com:4723")
